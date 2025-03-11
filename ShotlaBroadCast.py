@@ -308,19 +308,9 @@ class OnnxRVC:
                     # AMDManager:ADLManager = ADLManager()
                     # GPUMemory:int = AMDManager.get_avaliable_devices()[0].get_memory_info()
                 logger.info(f"发现GPU: {GPUName}，内存: {GPUMemory}GB")
-
-                # 如果GPU内存为8GB，则分配Hubert和RVC模型各2GB
-                if GPUMemory == 8:
-                    return GPUName, 2, 2
-                # 如果GPU内存为12GB，则分配Hubert为3GB，RVC为4GB
-                elif GPUMemory == 12:
-                    return GPUName, 3, 4
-                # 如果GPU内存为16GB，则分配Hubert为3GB，RVC为5GB
-                elif GPUMemory == 16:
-                    return GPUName, 3, 5
-                # 如果GPU内存为24GB，则分配Hubert为4GB，RVC为8GB
-                elif GPUMemory == 24:
-                    return GPUName, 4, 8       
+                if GPUMemory < 8:
+                    logger.warning("GPU显存小于8GB，这可能会导致游戏卡顿，或RVC推理效率大打折扣！")
+                return GPUName, 2, 2 
         # 如果没有找到GPU，则抛出异常
         raise Exception("未找到可用于RVC运行的GPU，其应为NVIDIA或AMD显卡")
 
@@ -474,7 +464,11 @@ async def convert(
         )
     except Exception as e:
         logger.error(f"变声失败，错误：{e}")
-        raise e
+        file_content = await WAVBuffer.read()
+        return Response(
+            content = file_content,
+            media_type = "audio/wav"
+        )
     
 @app.post("/change_character")
 async def change_character(
