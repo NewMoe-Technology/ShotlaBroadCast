@@ -46,3 +46,14 @@ pip install -r requirements.txt
 
 ## 打包
 你可以通过使用项目下的`build.bat`进行打包，需要注意的是：exe打包和发布在Github时应标注其模型执行后端，例如：`Shotla-0.1.0-cuda.exe`或`Shotla-0.1.0-directml.exe`。
+
+
+## API调用
+
+**/convert**
+
+- Method: POST
+- Request:
+    - WAVBuffer: 音频文件的二进制流
+- Response:
+    - WAVBuffer: 已经通过RVC模型转换后的音频文件的二进制流
