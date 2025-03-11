@@ -4,7 +4,7 @@
 a = Analysis(
     ['ShotlaBroadCast.py'],
     pathex=[],
-    binaries=[],
+    binaries=[('C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.6\\bin\\cudnn_ops_infer64_8.dll', '.'), ('D:\\zlib123dllx64\\dll_x64\\zlibwapi.dll', '.')],
     datas=[],
     hiddenimports=['modelscope', 'wmi', 'pywin32', 'fastapi', 'fastapi.middleware.cors', 'fastapi.responses', 'scipy', 'loguru', 'pynvml', 'pyworld', 'librosa', 'numpy', 'onnxruntime', 'uvicorn'],
     hookspath=[],
