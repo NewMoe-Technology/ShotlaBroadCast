@@ -53,7 +53,9 @@ pip install -r requirements.txt
 **/convert**
 
 - Method: POST
-- Request:
-    - WAVBuffer: 音频文件的二进制流
+- Request (form):
+    - Name: WAVBuffer(待变声的音频文件二进制流)
+    - Type: file
 - Response:
-    - WAVBuffer: 已经通过RVC模型转换后的音频文件的二进制流
+    - Name: WAVBuffer(已经通过RVC模型转换后的音频文件的二进制流)
+    - Type: Byte Response
