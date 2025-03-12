@@ -59,7 +59,7 @@ pip install -r requirements.txt
 - Response:
     - WAVBuffer: 已经通过RVC模型转换后的音频文件的二进制流
 
-### 调用实例
+### 调用示例
 ```python
 import requests
 from time import perf_counter
