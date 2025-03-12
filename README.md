@@ -57,3 +57,31 @@ pip install -r requirements.txt
     - WAVBuffer: 音频文件的二进制流
 - Response:
     - WAVBuffer: 已经通过RVC模型转换后的音频文件的二进制流
+
+### 调用实例
+```python
+import requests
+from time import perf_counter
+
+api:str = "http://localhost:8000/convert"
+
+input_bytes:bytes = open("./base (2).mp3", "rb").read()
+
+print(f"Input Length: {len(input_bytes)}")
+
+start = perf_counter()
+response:bytes = requests.post(
+    api,
+    files = {
+        "WAVBuffer": input_bytes
+    }
+)
+
+print(f"Response Legnth: {len(response.content)},inference cost: {round(perf_counter() - start,2)} seconds.")
+```
+
+### 结果
+```shell
+Input Length: 43920
+Response Legnth: 175724,inference cost: 2.14 seconds.
+```
