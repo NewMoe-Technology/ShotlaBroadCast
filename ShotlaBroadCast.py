@@ -33,7 +33,7 @@ from fastapi import FastAPI
 from io import BytesIO
 from scipy.io.wavfile import write
 from loguru import logger
-# from pydal import ADLManager
+from pyadl import ADLManager
 
 
 import pynvml
@@ -304,9 +304,8 @@ class OnnxRVC:
                     GPUMemory:int = info.total // 1024 // 1024 // 1024 # 获取GPU内存大小
                     pynvml.nvmlShutdown()
                 elif "AMD" in gpu.Name:
-                    raise NotImplementedError("暂不支持AMD GPU及其信息获取")
-                    # AMDManager:ADLManager = ADLManager()
-                    # GPUMemory:int = AMDManager.get_avaliable_devices()[0].get_memory_info()
+                    # raise NotImplementedError("暂不支持AMD GPU及其信息获取")
+                    GPUMemory:int = gpu.AdapterRAM & 0xffffffff
                 logger.info(f"发现GPU: {GPUName}，内存: {GPUMemory}GB")
                 if GPUMemory < 8:
                     logger.warning("GPU显存小于8GB，这可能会导致游戏卡顿，或RVC推理效率大打折扣！")
