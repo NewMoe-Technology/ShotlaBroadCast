@@ -29,11 +29,12 @@ from fastapi.responses import (
     JSONResponse
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi import FastAPI
 from io import BytesIO
 from scipy.io.wavfile import write
 from loguru import logger
-from pyadl import ADLManager
+# from pyadl import ADLManager
 
 
 import pynvml
@@ -69,6 +70,8 @@ app.add_middleware(
     allow_headers = ["*"],
 )
 
+# 配置GZip中间件
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # 创建F0预测器
 class DioF0Predictor(object):
@@ -92,50 +95,59 @@ class DioF0Predictor(object):
         self.f0_max:int = f0_max
         self.sampling_rate:int = sampling_rate
 
-    def interpolate_f0(
-        self, 
-        f0 : np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def interpolate_f0(self,f0) -> np.ndarray:
         """
-        对F0进行插值处理
+        用于执行F0的插值函数
         Args:
             f0 (np.ndarray): 输入F0
         Returns:
-            Tuple[np.ndarray, np.ndarray]: 插值后的F0和VUV
+            np.ndarray: 插值后的F0
         """
-
-        data:np.ndarray = np.reshape(f0, (f0.size, 1))
-
-        vuv_vector:np.ndarray = np.zeros((data.size, 1), dtype=np.float32)
-        vuv_vector[data > 0.0] = 1.0
-        vuv_vector[data <= 0.0] = 0.0
-
-        ip_data:np.ndarray = data
-
-        frame_number:int = data.size
-        last_value:float = 0.0
-        for i in range(frame_number):
-            if data[i] <= 0.0:
-                j:int = i + 1
-                for j in range(i + 1, frame_number):
-                    if data[j] > 0.0:
-                        break
-                if j < frame_number - 1:
-                    if last_value > 0.0:
-                        step:int = (data[j] - data[i - 1]) / float(j - i)
-                        for k in range(i, j):
-                            ip_data[k] = data[i - 1] + step * (k - i + 1)
-                    else:
-                        for k in range(i, j):
-                            ip_data[k] = data[j]
-                else:
-                    for k in range(i, frame_number):
-                        ip_data[k] = last_value
-            else:
-                ip_data[i] = data[i]  # 这里可能存在一个没有必要的拷贝
-                last_value = data[i]
-
-        return ip_data[:, 0], vuv_vector[:, 0]
+        data = f0.copy()
+        vuv_vector = (data > 0).astype(np.float32) # 生成VUV向量，即非0值向量
+        
+        # 定位所有非零点
+        nonzero_indices = np.where(data > 0)[0] # 获取所有非零点的索引
+        if len(nonzero_indices) == 0: # 如果全是0，则说明WORLD无法提取F0
+            return np.zeros_like(data), vuv_vector
+        
+        # 构建插值区间映射表（关键修正点）
+        prev_valid = np.concatenate([[-1], nonzero_indices])
+        next_valid = np.concatenate([nonzero_indices, [len(data)]])
+        
+        # 生成有效区间对（确保维度一致）
+        start_indices = prev_valid[:-1] + 1  # 前导区间起始点
+        end_indices = next_valid[1:]         # 后续区间结束点
+        
+        # 修正索引越界问题（关键修改）
+        valid_mask = (prev_valid[:-1] >= 0) & (next_valid[1:] < len(data))  # 严格小干
+        
+        # 应用有效掩码
+        start_indices = start_indices[valid_mask]
+        end_indices = end_indices[valid_mask]
+        prev_values = data[prev_valid[:-1][valid_mask]]
+        next_values = data[next_valid[1:][valid_mask]]  # 此时next_values索引已安全
+        
+        # 向量化插值计算
+        for start, end, prev, nxt in zip(start_indices, end_indices, prev_values, next_values):
+            if start < end:
+                interval_length = end - start
+                data[start:end] = np.linspace(prev, nxt, interval_length, endpoint=False)
+        
+        # 增强边界处理（应对最后一个非零点后的区间）
+        last_nonzero = nonzero_indices[-1]
+        if last_nonzero < len(data) - 1:
+            # 计算需要填充的长度
+            fill_length = len(data) - (last_nonzero + 1)
+            if fill_length > 0:
+                data[last_nonzero+1:] = data[last_nonzero]
+        
+        # 处理起始边界（应对第一个非零点前的区间）
+        first_nonzero = nonzero_indices[0]
+        if first_nonzero > 0:
+            data[:first_nonzero] = data[first_nonzero]
+        
+        return data, vuv_vector
 
     def resize_f0(
         self, 
@@ -346,14 +358,14 @@ class OnnxRVC:
 
     def inference(
         self,
-        raw_path: UploadFile,
+        raw_path: BytesIO,
         sid: int, # 说话人ID，默认为0
         f0_up_key:int = 0, # 变调的8度数，默认为0
     ) -> bytes:
         """
         用于执行音频变声的函数
         Args:
-            raw_path (UploadFile): 输入音频
+            raw_path (BytesIO): 输入音频
             sid (int): 说话人ID
             f0_up_key (int, optional): 变调的8度数. 默认为0
         Returns:
@@ -364,18 +376,19 @@ class OnnxRVC:
         f0_mel_min:int = 1127 * np.log(1 + f0_min / 700)
         f0_mel_max:int = 1127 * np.log(1 + f0_max / 700)
         start:float = perf_counter()
+        raw_path.seek(0) # 重置文件指针
         wav, sr = librosa.load(raw_path, sr=self.sampling_rate)
         org_length:int = len(wav)
 
         wav16k:np.ndarray = librosa.resample(wav, orig_sr=self.sampling_rate, target_sr=16000)
         wav16k:np.ndarray = wav16k
-        logger.info(f"音频读取并重采样完成，大小: {wav.shape}，耗时: {perf_counter() - start:.2f}s")
+        logger.info(f"音频读取并重采样完成，大小: {wav.shape}，耗时: {perf_counter() - start:.4f}s")
 
         start:float = perf_counter()
         hubert:np.ndarray = self.vec_model(wav16k)
         hubert:np.ndarray = np.repeat(hubert, 2, axis=2).transpose(0, 2, 1).astype(np.float32)
         hubert_length:int = hubert.shape[1]
-        logger.info(f"音频特征提取完成，大小: {hubert.shape}，耗时: {perf_counter() - start:.2f}s")
+        logger.info(f"音频特征提取完成，大小: {hubert.shape}，耗时: {perf_counter() - start:.4f}s")
 
         start:float = perf_counter()
         pitchf:np.ndarray = self.f0_predictor.compute_f0(wav, hubert_length)
@@ -388,7 +401,7 @@ class OnnxRVC:
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > 255] = 255
         pitch:np.ndarray = np.rint(f0_mel).astype(np.int64)
-        logger.info(f"F0计算完成，大小: {pitch.shape}，耗时: {perf_counter() - start:.2f}s")
+        logger.info(f"F0计算完成，大小: {pitch.shape}，耗时: {perf_counter() - start:.4f}s")
 
         pitchf:np.ndarray = pitchf.reshape(1, len(pitchf)).astype(np.float32)
         pitch:np.ndarray = pitch.reshape(1, len(pitch))
@@ -400,12 +413,31 @@ class OnnxRVC:
         start:float = perf_counter()
         out_wav:np.ndarray = self.forward(hubert, hubert_length, pitch, pitchf, ds, rnd).squeeze()
         out_wav:np.ndarray = np.pad(out_wav, (0, 2 * self.hop_size), "constant")
-        # return out_wav[0:org_length]
-        buffer:BytesIO = BytesIO()
-        write(buffer, self.sampling_rate, out_wav[0:org_length])
-        buffer.seek(0)
-        logger.info(f"音频转换完成，耗时: {perf_counter() - start:.2f}s")
-        return buffer.read()
+        logger.info(f"音频变声完成，大小: {out_wav.shape}，耗时: {perf_counter() - start:.4f}s")
+        return self.wav_to_bytes(self.sampling_rate, out_wav)
+    
+    def wav_to_bytes(self, sample_rate: int, data: np.ndarray) -> bytes:
+        data = data.astype(np.int16).flatten()
+        num_samples = data.size
+        bytes_per_sample = 2
+        subchunk2_size = num_samples * bytes_per_sample
+        chunk_size = 36 + subchunk2_size
+        
+        header = b'RIFF'
+        header += chunk_size.to_bytes(4, 'little')
+        header += b'WAVEfmt '
+        header += (16).to_bytes(4, 'little')
+        header += (1).to_bytes(2, 'little') 
+        header += (1).to_bytes(2, 'little') 
+        header += sample_rate.to_bytes(4, 'little')
+        byte_rate = sample_rate * 1 * 2
+        header += byte_rate.to_bytes(4, 'little')
+        header += (2).to_bytes(2, 'little') 
+        header += (16).to_bytes(2, 'little') 
+        header += b'data'
+        header += subchunk2_size.to_bytes(4, 'little')
+        
+        return header + data.tobytes()
 
 # 创建变声器
 try:
@@ -438,6 +470,7 @@ try:
 except Exception as e:
     logger.error(f"初始化变声器失败，错误：{e}")
     os.system("pause")
+    os._exit(-1)
 
 @app.post("/convert")
 async def convert(
@@ -452,22 +485,17 @@ async def convert(
     """
     # 执行变声
     try:
-        Output:bytes = VC.inference(
-            WAVBuffer.file,
-            0
-        )
-        # 返回音频流
-        return Response(
-            content = Output,
-            media_type = "audio/wav"
-        )
+        start = perf_counter()
+        content = await WAVBuffer.read()
+        audio_buffer = BytesIO(content)  # 直接初始化BytesIO
+        
+        output = VC.inference(audio_buffer, 0)
+        
+        logger.info(f"E2E耗时: {perf_counter()-start:.4f}s")
+        return Response(content=output, media_type="audio/wav")
     except Exception as e:
-        logger.error(f"变声失败，错误：{e}")
-        file_content = await WAVBuffer.read()
-        return Response(
-            content = file_content,
-            media_type = "audio/wav"
-        )
+        logger.error(f"处理失败: {str(e)}")
+        return Response(content=await WAVBuffer.read(), media_type="audio/wav")
     
 @app.post("/change_character")
 async def change_character(
