@@ -66,15 +66,15 @@ from time import perf_counter
 
 api:str = "http://localhost:8000/convert"
 
-input_bytes:bytes = open("./base (2).mp3", "rb").read()
+input_text:str = "今天天气真的热"
 
 print(f"Input Length: {len(input_bytes)}")
 
 start = perf_counter()
 response:bytes = requests.post(
     api,
-    files = {
-        "WAVBuffer": input_bytes
+    params = {
+        "text": input_text
     }
 )
 
