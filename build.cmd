@@ -1,0 +1,1 @@
+nuitka --standalone --onefile --follow-import-to=numpy --follow-import-to=soundfile --follow-import-to=onnxruntime --follow-import-to=pyworld --follow-import-to=resampy --follow-import-to=loguru ShotlaBroadcast.py
