@@ -21,7 +21,7 @@ if not pathlib.Path(os.getcwd() + "/models").exists():
 
 if list( pathlib.Path(os.getcwd() + "/models").rglob("*.onnx")) == []:
     logger.error(
-        "请将Shotla.onnx和hubert_fp16.onnx模型放入当前目录的models文件夹中"
+        "请将Shotla_fp16.onnx和hubert_fp16.onnx模型放入当前目录的models文件夹中"
     )
     os.system("pause")
 
