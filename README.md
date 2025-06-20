@@ -39,7 +39,7 @@ pip install -r requirements.txt
 为了规避`modelscope`库产生的其他依赖，现在你需要前往[ModelScope](https://www.modelscope.cn/models/ElinLiu/RVC-Resaech/files)中下载对应**标记了_fp16**的ONNX模型文件，并将其放置在`models`目录下。
 
 ## 打包
-你可以通过使用项目下的`build.cmd`进行打包，但由于打包框架从最开始的`pyinstaller`更换为了`Nuitka`，所以暂时还没来得及验证可用性，实在不行再换回`pyinstaller`。
+你可以通过使用项目下的`build.cmd`进行打包，~~但由于打包框架从最开始的`pyinstaller`更换为了`Nuitka`，所以暂时还没来得及验证可用性，实在不行再换回`pyinstaller`~~。
 
 ### 调用示例
 详见[BenchMark](./BenchMarks.cs)

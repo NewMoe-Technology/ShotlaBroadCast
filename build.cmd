@@ -1,1 +1,1 @@
-nuitka --standalone --onefile --follow-import-to=numpy --follow-import-to=soundfile --follow-import-to=onnxruntime --follow-import-to=pyworld --follow-import-to=resampy --follow-import-to=loguru ShotlaBroadcast.py
+pyinstaller -F --hidden-import=soundfile --hidden-import=numpy --hidden-import=onnxruntime --hidden-import=pyworld --hidden-import=resampy --hidden-import=loguru --icon=icon.ico ShotlaBroadCast.py
