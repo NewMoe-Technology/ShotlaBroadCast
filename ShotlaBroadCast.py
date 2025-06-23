@@ -21,7 +21,8 @@ if not pathlib.Path(os.getcwd() + "/models").exists():
 
 if list( pathlib.Path(os.getcwd() + "/models").rglob("*.onnx")) == []:
     logger.error(
-        "请将Shotla_fp16.onnx和hubert_fp16.onnx模型放入当前目录的models文件夹中"
+        "请将Shotla_fp16.onnx和hubert_fp16.onnx模型放入当前目录的models文件夹中\n"
+        "请访问：https://www.modelscope.cn/models/ElinLiu/RVC-Resaech/files"
     )
     os.system("pause")
 
