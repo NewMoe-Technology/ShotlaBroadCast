@@ -14,9 +14,9 @@ from loguru import logger
 import pathlib
 import platform
 
-win_distrubtion:int = int(platform.win32_ver()[0])
+win_distribution:int = int(platform.win32_ver()[0])
 
-if win_distrubtion < 10:
+if win_distribution < 10:
     logger.error(
         f"无法启动ShotlaBroadCast，最低要求为Windows 10，而您的Windows版本为{platform.win32_ver()[0]}\n"
     )
