@@ -12,6 +12,22 @@ import socket
 import resampy
 from loguru import logger
 import pathlib
+import platform
+
+win_distrubtion:int = int(platform.win32_ver()[0])
+
+if win_distrubtion < 10:
+    logger.error(
+        f"无法启动ShotlaBroadCast，最低要求为Windows 10，而您的Windows版本为{platform.win32_ver()[0]}\n"
+    )
+    os.system("pause")
+else:
+    win_release:int = int(platform.win32_ver()[1].split(".")[-1])
+    if win_release < 18362:
+        logger.error(
+            f"无法启动ShotlaBroadCast，请检查您的Windows系统版本是否为Windows 10 1903或更高版本\n"
+        )
+        os.system("pause")
 
 if not pathlib.Path(os.getcwd() + "/logs").exists():
     pathlib.Path(os.getcwd() + "/logs").mkdir(parents=True, exist_ok=True)
