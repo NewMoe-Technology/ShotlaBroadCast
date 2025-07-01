@@ -13,7 +13,6 @@ import resampy
 from loguru import logger
 import pathlib
 import platform
-import wmi
 
 win_distribution:int = int(platform.win32_ver()[0])
 
@@ -31,12 +30,6 @@ else:
         )
         os.system("pause")
         os._exit(1)
-if "Intel" in [gpu.Name for gpu in wmi.WMI().Win32_VideoController()]:
-    logger.error(
-        "您可能是Intel的受害者！！我们强烈不建议您使用Intel GPU运行此程序\n"
-    )
-    os.system("pause")
-    os._exit(1)
 if not pathlib.Path(os.getcwd() + "/logs").exists():
     pathlib.Path(os.getcwd() + "/logs").mkdir(parents=True, exist_ok=True)
 
@@ -374,27 +367,28 @@ class ShotlaBroadCast(object):
 
 
 def main():
-    # 创建Socket连接
-    sock:socket.socket = socket.socket(
-        socket.AF_INET,
-        socket.SOCK_DGRAM
-    )
-    sock.bind(('0.0.0.0',8023)) # 小彩蛋，80倒过来是我的生日 : )
     # 初始化ShotlaBroadCast实例
     shotla_broadcast:ShotlaBroadCast = ShotlaBroadCast()
-    logger.info(f"ShotlaBroadCast服务器已启动，端口8023...")
-    while True:
-        data, addr = sock.recvfrom(1024)
-        # 规约使用\t来标识输入路径和输出路径
-        input_path, output_path = data.decode('utf-8').split('\t')
-        logger.info(f"已从{addr}接收到请求: {input_path} -> {output_path}")
+    warmup_audios:list = pathlib.Path(os.getcwd() + "/RVC-WarmupAudios").rglob("*.wav")
+    if not warmup_audios:
+        logger.error(
+            "请将RVC-WarmupAudios文件夹放在当前目录下，并确保其中包含.wav格式的音频文件"
+            "您可以前往：https://www.modelscope.cn/models/ElinLiu/RVC-WarmupAudios克隆下载"
+        )
+        os.system("pause")
+        os._exit(1)
+    for audio in warmup_audios:
+        logger.info(f"正在预热模型，处理音频: {audio}")
         try:
-            shotla_broadcast(input_path, output_path)
-            logger.info(f"输入{input_path}已处理完毕，并保存到{output_path}")
-            sock.sendto("0".encode('utf-8'), addr)  # 发送成功信号
+            shotla_broadcast(
+                str(audio), 
+                os.getcwd() + "/cache.wav"
+            )
         except Exception as e:
-            logger.error(f"处理输入：{input_path}时发生错误: {e}")
-            sock.sendto("1".encode('utf-8'), addr)
+            logger.error(f"预热模型时出错: {e}")
+            os.system("pause")
+            os._exit(1)
+    pathlib.Path(os.getcwd() + "/cache.wav").unlink(missing_ok=True)
 
 if __name__ == "__main__":
     main()

@@ -18,3 +18,7 @@ models/
 
 # 忽略warmup_audios文件夹
 warmup_audios/
+
+RVC-WarmupAudios/
+
+cache.wav
