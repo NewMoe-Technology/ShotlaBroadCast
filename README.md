@@ -46,6 +46,6 @@ pip install -r requirements.txt
 
 ## 更新说明
 ~~- 对比之前的Patch，使用`Nuitka`打包框架，打包体积可能会比之前小，运行效率能好一些。~~
-- 使用了DirectML作为后端，支持更多的显卡，甚至是Intel GPU。
+- 使用了DirectML作为后端，支持更多的显卡，~~甚至是Intel GPU~~。
 - 最**核心**的更新，现已支持FP16权重的RVC和Hubert模型，显著降低了显存占用和运行时内存占用！
 
