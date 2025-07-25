@@ -1,1 +1,1 @@
-pyinstaller -F --hidden-import=soundfile --hidden-import=numpy --hidden-import=onnxruntime --hidden-import=pyworld --hidden-import=resampy --hidden-import=loguru --hidden-import=wmi --hidden-import=pywin32 --icon=icon.ico ShotlaBroadCast.py
+pyinstaller -F --hidden-import=soundfile --hidden-import=numpy --hidden-import=onnxruntime --hidden-import=pyworld --hidden-import=resampy --hidden-import=loguru --hidden-import=wmi --hidden-import=pywin32 --hidden-import=pyopencl --icon=icon.ico ShotlaBroadCast.py
