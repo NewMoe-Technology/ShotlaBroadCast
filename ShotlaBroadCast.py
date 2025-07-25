@@ -5,7 +5,8 @@ import onnxruntime as ort
 import pyworld
 from typing import (
     Optional,
-    Dict
+    Dict,
+    List
 )
 import os
 import socket
@@ -14,6 +15,7 @@ from loguru import logger
 import pathlib
 import platform
 import wmi
+import pyopencl as cl
 
 win_distribution:int = int(platform.win32_ver()[0])
 
@@ -31,12 +33,37 @@ else:
         )
         os.system("pause")
         os._exit(1)
-if "Intel" in [gpu.Name for gpu in wmi.WMI().Win32_VideoController()]:
+# 先别这么绝对先 : |
+
+# if "Intel" in [gpu.Name for gpu in wmi.WMI().Win32_VideoController()]:
+#     logger.error(
+#         "您可能是Intel的受害者！！我们强烈不建议您使用Intel GPU运行此程序\n"
+#     )
+#     os.system("pause")
+#     os._exit(1)
+
+# 使用OpenCL检查是否有且仅有Intel核显或AMD APU
+GPUCards:List[cl.Device] = []
+for platform in cl.get_platforms():
+    for device in platform.get_devices(
+        device_type = cl.device_type.GPU
+    ):
+        GPUCards.append(device)
+
+if len(GPUCards) == 0:
     logger.error(
-        "您可能是Intel的受害者！！我们强烈不建议您使用Intel GPU运行此程序\n"
+        "无法找到任何GPU设备，请检查您的计算机是否安装了GPU驱动程序\n"
     )
     os.system("pause")
     os._exit(1)
+
+if len(GPUCards) == 1 and all([gpu.host_unified_memory for gpu in GPUCards]):
+    logger.error(
+        "无法使用集成显卡运行ShotlaBroadCast，请使用独立显卡运行\n"
+    )
+    os.system("pause")
+    os._exit(1)
+
 if not pathlib.Path(os.getcwd() + "/logs").exists():
     pathlib.Path(os.getcwd() + "/logs").mkdir(parents=True, exist_ok=True)
 
